@@ -1,0 +1,323 @@
+---
+title: "GO_transferase analysis"
+author: "Cam Burton"
+date: "July 11, 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+Set working directory for saved files
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = 'C:/Users/Cameron Burton/Downloads')
+```
+
+
+CLear global environment 
+```{r}
+rm(list = ls())
+```
+
+
+Load necessary libraries
+```{r}
+library(fuzzyjoin)
+library(DESeq2)
+library(tidyverse)
+library
+
+if(!require(readxl)){
+    install.packages("readxl")
+    library(readxl)
+}
+```
+
+Set readxl directories
+```{r}
+data_dir_gene_id <- "C:/Users/Cameron Burton/Downloads/Arabidopsis thaliana _Gene.xlsx"
+```
+
+Load data 
+```{r}
+counts_time_col <- read.csv("counts_col_all_time_points.csv", row.names=1)
+
+covariates_time_col <- read.csv("covariates_col_all-time-points.csv")
+
+gene_id <- read_excel(data_dir_gene_id, sheet = "Arabidopsis thaliana _Gene", range = "A1:J27656", col_types = "text")
+
+transferase_genes <- read.csv("Col _all-time-pts_sig_upreg6h_GO-terms_transferase_activity.csv")
+```
+
+Question 1: How many genes fall under the transferase activity GO term?
+```{r}
+dim(transferase_genes) #get dimensions of our transferase gene datafrae
+```
+Answer: 282 genes
+
+Question 2: What are the top 5 most significant(i.e. lowest p)
+  First set up Differential expression:
+```{r}
+covariates_time_col$treatment <- factor(covariates_time_col$treatment, levels=c("mock","NHP")) #mock first because we compare NHP to mock
+covariates_time_col$timepoint <- factor(covariates_time_col$timepoint, levels=c("15","30", "180", "360"))
+covariates_time_col$batch <- factor(covariates_time_col$batch)
+
+rownames(covariates_time_col) = covariates_time_col$samples #Important - makes the names of samples into row names
+head(covariates_time_col)
+```
+```{r}
+
+```
+
+Likelihood Ratio Test:
+a) Create Deseq object
+```{r}
+
+ddsTC <- DESeqDataSetFromMatrix(countData = counts_time_col, 
+                                colData = covariates_time_col, 
+                                design = ~ timepoint + treatment:timepoint)
+
+dds_lrt_TC <- DESeq(ddsTC, test="LRT", reduced = ~ timepoint)
+
+```
+
+Pull results from table
+```{r}
+res_lrt_TC <- results(dds_lrt_TC)
+res_lrt_TC$symbol <- mcols(res_lrt_TC)$symbol
+head(res_lrt_TC[order(res_lrt_TC$padj),], 4)
+```
+
+Pusll out results from specific comparisons:
+```{r}
+#timepoint15 - treatmentNHP
+res_lrt_tp15 <- results(dds_lrt_TC, name="timepoint15.treatmentNHP")
+res_lrt_tp15$symbol <- mcols(res_lrt_tp15)$symbol
+head(res_lrt_tp15[order(res_lrt_tp15$padj),], 4)
+
+#timepoint30 - treatmentNHP
+res_lrt_tp30 <- results(dds_lrt_TC, name="timepoint30.treatmentNHP")
+res_lrt_tp30$symbol <- mcols(res_lrt_tp30)$symbol
+head(res_lrt_tp30[order(res_lrt_tp30$padj),], 4)
+
+#timepoint180 - treatmentNHP
+res_lrt_tp180 <- results(dds_lrt_TC, name="timepoint180.treatmentNHP")
+res_lrt_tp180$symbol <- mcols(res_lrt_tp180)$symbol
+head(res_lrt_tp180[order(res_lrt_tp180$padj),], 4)
+
+#timepoint360 - treatmentNHP
+res_lrt_tp360 <- results(dds_lrt_TC, name="timepoint360.treatmentNHP")
+res_lrt_tp360$symbol <- mcols(res_lrt_tp360)$symbol
+head(res_lrt_tp360[order(res_lrt_tp360$padj),], 4)
+```
+
+Summary of the analyses:
+```{r}
+sum(res_lrt_tp15$padj < 0.05, na.rm=TRUE)
+sum(res_lrt_tp30$padj < 0.05, na.rm=TRUE)
+sum(res_lrt_tp180$padj < 0.05, na.rm=TRUE)
+sum(res_lrt_tp360$padj < 0.05, na.rm=TRUE)
+```
+
+Add gene names to each analysis:
+```{r}
+res_LRT_col_15 <- res_lrt_tp15 %>%
+               data.frame() %>%
+               rownames_to_column(var="gene_id") %>% 
+               as_tibble() %>%
+  dplyr::rename("baseMean_15" = "baseMean",
+                "log2FoldChange_15" = "log2FoldChange",
+                "lfcSE_15" = "lfcSE",
+                "stat_15" = "stat",
+                "pvalue_15" = "pvalue",
+                "padj_15" = "padj")
+ 
+res_LRT_col_30 <- res_lrt_tp30 %>%
+               data.frame() %>%
+               rownames_to_column(var="gene_id") %>% 
+               as_tibble() %>%
+  dplyr::rename("baseMean_30" = "baseMean",
+                "log2FoldChange_30" = "log2FoldChange",
+                "lfcSE_30" = "lfcSE",
+                "stat_30" = "stat",
+                "pvalue_30" = "pvalue",
+                "padj_30" = "padj") 
+
+res_LRT_col_180 <- res_lrt_tp180 %>%
+               data.frame() %>%
+               rownames_to_column(var="gene_id") %>% 
+               as_tibble() %>%
+  dplyr::rename("baseMean_180" = "baseMean",
+                "log2FoldChange_180" = "log2FoldChange",
+                "lfcSE_180" = "lfcSE",
+                "stat_180" = "stat",
+                "pvalue_180" = "pvalue",
+                "padj_180" = "padj")
+
+res_LRT_col_360 <- res_lrt_tp360 %>%
+               data.frame() %>%
+               rownames_to_column(var="gene_id") %>% 
+               as_tibble() %>%
+  dplyr::rename("baseMean_360" = "baseMean",
+                "log2FoldChange_360" = "log2FoldChange",
+                "lfcSE_360" = "lfcSE",
+                "stat_360" = "stat",
+                "pvalue_360" = "pvalue",
+                "padj_360" = "padj")
+
+#join all
+res_LRT_col_all_time <- full_join(res_LRT_col_15, res_LRT_col_30, by = "gene_id") %>% 
+  full_join(res_LRT_col_180, by = "gene_id") %>% 
+  full_join(res_LRT_col_360, by = "gene_id") %>% 
+  inner_join(gene_id, by = "gene_id") %>% 
+  select(gene_id, Name, description, 
+         log2FoldChange_15, log2FoldChange_30, log2FoldChange_180, log2FoldChange_360, 
+         padj_15, padj_30, padj_180, padj_360, 
+         pvalue_15, pvalue_30, pvalue_180, pvalue_360,
+         baseMean_15, baseMean_30, baseMean_180, baseMean_360,
+         lfcSE_15, lfcSE_30, lfcSE_180, lfcSE_360,
+         stat_15, stat_30, stat_180, stat_360)
+```
+
+
+Save the joined tables so they can be opened in excel for additional analyses:
+```{r}
+write.csv(res_LRT_col_all_time, file = "ddsTC_res_Col_all-time-pts_LFC_names.csv", row.names = FALSE)
+```
+
+Subset results for all genes with padj < 0.05:
+```{r}
+sig_LFC_all <- res_LRT_col_all_time %>% 
+               dplyr::filter(padj_360 < 0.05) %>% #select only significant genes
+  dplyr::arrange(desc(log2FoldChange_360)) #sort from largest LFC to smallest based on LFC values at 6h post treatment
+```
+
+
+Pull only transferase genes from data:
+```{r}
+transferase <- "transferase"
+res_transferase <- sig_LFC_all %>%
+  filter(str_detect(description,transferase)) %>%
+  dplyr::rename("gene" = "gene_id")
+
+sigLRT_transferase <- res_transferase %>% 
+  pull(gene)
+
+length(sigLRT_transferase)
+```
+
+Sort p-adj:
+```{r}
+res_transferase <- res_transferase[with(res_transferase, order(padj_360)),]
+head (res_transferase)
+```
+Answer: The top 5 differentially expressed genes that can be classified as having transferase activity are:
+UGT76B1, GSTU22, POP2, UGT73B3, IPT5 and gene:AT3G18170
+
+
+Question 3: What are the top 5 most upregulated differentialexpressed genes at the 6h timepoint?
+```{r}
+res_transferase <- res_transferase[with(res_transferase, order(-log2FoldChange_360)),]
+head(res_transferase)
+```
+Answer: The top 5 most upregulated differentially expressed genes at the 6h timepoint are GSTU22, BCAT7, UGT73B4, GSTU24, CSLG2, GSTU25.
+
+
+Question 4: How do the genes with transferase activity  cluster: Create a plot to visualize the different clusters? How ,amy clusters are present?
+```{r}
+library(DEGreport)
+clustering_sig_transferase <- res_transferase %>%
+  arrange(padj_360)
+
+rld <- rlog(ddsTC, blind = TRUE)
+rld_mat <- assay(rld)
+cluster_rlog_transferase <- rld_mat[clustering_sig_transferase$gene , ]
+```
+
+Calculate and plot transferase clusters
+```{r}
+clusters_transferase <- degPatterns(cluster_rlog_transferase, metadata = covariates_time_col, minc = 1, time = "timepoint", col = "treatment") 
+```
+Answer: Here is my graph with the 13 different clusters.
+
+5. Choose a cluster with an expression profile that you find has an interesting  response profile (e.g. a cluster where NHP treated samples have higher expression than mock treated.) What genes are included in this cluster?
+
+
+```{r}
+cluster_2_genes <- clusters_transferase$df %>% 
+  filter(cluster == "2")
+
+write.csv(cluster_2_genes, "cluster_2_genes.csv", row.names = FALSE )
+
+write.csv(gene_id, "gene_id.csv", row.names = FALSE)
+
+cluster_2_genes_annotated <- read.csv("cluster_2_genes_annotated.csv")
+
+cluster_2_names <- cluster_2_genes_annotated$names
+
+cluster_2_names
+```
+
+Answer: I'm choosing group 2. Group 10 is a much more insteresting group but there are only two genes. The genes in group 2 are: GSTU22, BCAT7, GTSU25, gene:AT5G55070, APL3, MS2, UGT79B10, OST48, PUB44, UGT71C3, gene:AT5G67430
+
+6. Make a few graphs plotting the expression of the individual genes from your cluster of interest: 
+a) You can try graphing values of LFC in excel or to more accurtely plot expression patterns in R try option b) To plot individual genes in R using the normalized counts try this code:
+```{r}
+library(ggeasy)
+
+norm_counts <- plotCounts(ddsTC, "AT1G78340",
+
+intgroup = c("timepoint","treatment"), returnData = TRUE)
+
+ggplot(norm_counts,
+
+aes(x = timepoint, y = count, color = treatment, group = treatment)) +
+
+geom_point() + stat_summary(fun=mean, geom="line") + 
+  
+ggtitle("GSTU22 expression in NHP v. Mock") +
+
+theme(plot.title = element_text(hjust = 0.5))
+
+
+scale_y_log10()
+```
+
+
+```{r}
+orm_counts <- plotCounts(ddsTC, "AT1G50090",
+
+intgroup = c("timepoint","treatment"), returnData = TRUE)
+
+ggplot(norm_counts,
+
+aes(x = timepoint, y = count, color = treatment, group = treatment)) +
+
+geom_point() + stat_summary(fun=mean, geom="line") + 
+  
+ggtitle("BCAT7 expression in NHP v. Mock") +
+
+theme(plot.title = element_text(hjust = 0.5))
+
+
+scale_y_log10()
+```
+
+```{r}
+orm_counts <- plotCounts(ddsTC, "AT1G17180",
+
+intgroup = c("timepoint","treatment"), returnData = TRUE)
+
+ggplot(norm_counts,
+
+aes(x = timepoint, y = count, color = treatment, group = treatment)) +
+
+geom_point() + stat_summary(fun=mean, geom="line") + 
+  
+ggtitle("GSTU25 expression in NHP v. Mock") +
+
+theme(plot.title = element_text(hjust = 0.5))
+
+
+scale_y_log10()
+```
+
+
